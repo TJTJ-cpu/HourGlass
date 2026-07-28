@@ -16,6 +16,9 @@ from pathlib import Path
 
 import requests
 
+from storage import connect, save_day
+from validation import validate
+
 LM_STUDIO_URL = "http://localhost:1234/v1/chat/completions"
 
 # LM Studio routes to whatever model is loaded, but naming it explicitly
@@ -125,6 +128,7 @@ def main() -> None:
     else:
         sys.exit(f"not a file or folder: {target}")
 
+    conn = connect()
     for image_path in images:
         print(f"\n=== {image_path.name} ===")
         raw = transcribe(image_path)
@@ -136,6 +140,26 @@ def main() -> None:
         except json.JSONDecodeError:
             print("model returned invalid JSON:")
             print(raw)
+            continue
+
+        # Milestone 2: the same raw string, now as trusted typed values.
+        try:
+            day_usage = validate(raw, image_path)
+        except (ValueError, KeyError) as error:
+            print(f"validation failed: {error}")
+            continue
+        print(f"\nvalidated: {day_usage.day}, {len(day_usage.entries)} apps")
+        for entry in day_usage.entries:
+            print(f"  {entry.app_name:<20} {entry.minutes:>4} min")
+
+        # Milestone 3: review before save — the table above is the review.
+        answer = input("\nsave to database? [y/N] ").strip().lower()
+        if answer == "y":
+            save_day(conn, day_usage, image_path, raw)
+            print(f"saved {day_usage.day}")
+        else:
+            print("skipped")
+    conn.close()
 
 
 if __name__ == "__main__":
