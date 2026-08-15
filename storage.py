@@ -41,6 +41,16 @@ def connect(db_path: Path = DB_PATH) -> sqlite3.Connection:
     return conn
 
 
+def imported_file_names(conn: sqlite3.Connection) -> set[str]:
+    """File names already recorded in screenshots.
+
+    Lets a long bulk import resume where it left off instead of paying
+    for the model again on files it already read.
+    """
+    rows = conn.execute("SELECT file_path FROM screenshots")
+    return {Path(row[0]).name for row in rows}
+
+
 def save_day(
     conn: sqlite3.Connection,
     day_usage: DayUsage,
